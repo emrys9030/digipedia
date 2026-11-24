@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Digipedia — Tüm Digimonlar (JSON)</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body style="background-color: #f4f6f9;">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold" href="{% url 'digimon-list-ui' %}">Digipedia</a>
+      <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'digimon-list-ui' %}" class="btn btn-sm btn-primary">Tüm Liste</a>
+        <a href="{% url 'digimon-by-name-ui' %}" class="btn btn-sm btn-outline-light">İsme Göre</a>
+        <a href="{% url 'digimon-by-id-ui' %}" class="btn btn-sm btn-outline-light">ID'ye Göre</a>
+        <a href="{% url 'digimon-create' %}" class="btn btn-sm btn-outline-success">+ Yeni Ekle</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container pb-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h1 class="h4 fw-bold mb-1">Tüm Kayıtlı Digimonlar</h1>
+        <p class="text-muted small mb-0">
+          Endpoint: <code>GET /api/digimons/</code>
+        </p>
+      </div>
+      <span class="badge bg-dark fs-6 px-3 py-2">Toplam: {{ total_count }}</span>
+    </div>
+
+    {% include "digimon/partials/json_viewer.html" %}
+  </main>
+</body>
+</html>

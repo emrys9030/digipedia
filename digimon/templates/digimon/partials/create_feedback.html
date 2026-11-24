@@ -1,0 +1,30 @@
+{% if errors %}
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <h6 class="alert-heading fw-bold mb-1">Doğrulama Hatası</h6>
+    <ul class="mb-0 small">
+      {% for field, msgs in errors.items %}
+        <li><strong>{{ field }}:</strong> {{ msgs }}</li>
+      {% endfor %}
+    </ul>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Kapat"></button>
+  </div>
+{% endif %}
+
+{% if saved_digimon %}
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <strong>{{ saved_digimon.name }}</strong> başarıyla {{ action_label }}
+    <span class="badge bg-success-subtle text-success-emphasis border ms-1">
+      ID: {{ saved_digimon.id }}
+    </span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Kapat"></button>
+  </div>
+
+  <div class="mb-3">
+    <div class="small text-muted fw-medium mb-1">API Yanıtı (JSON)</div>
+    <pre class="json-preview mb-0">{{ saved_json }}</pre>
+  </div>
+
+  <div id="recent-digimons" hx-swap-oob="true">
+    {% include "digimon/partials/recent_list.html" %}
+  </div>
+{% endif %}

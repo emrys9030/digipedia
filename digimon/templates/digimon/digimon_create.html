@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>
+        {% if is_update %}
+            Digipedia — {{ instance.name }} Güncelle
+        {% else %}
+            Digipedia — Yeni Digimon Ekle
+        {% endif %}
+    </title>
+    <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+    />
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <style>
+        body {
+            background-color: #f4f6f9;
+        }
+
+        .card {
+            border: none;
+            border-radius: 14px;
+            box-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .skill-card {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+        }
+
+        .htmx-indicator {
+            display: none;
+        }
+
+        .htmx-request .htmx-indicator {
+            display: inline-block;
+        }
+
+        pre.json-preview {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            border-radius: 10px;
+            padding: 1rem;
+            font-size: 0.875rem;
+            max-height: 360px;
+            overflow: auto;
+        }
+
+        .image-preview-box {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 0.75rem;
+        }
+
+        .image-preview-box img {
+            max-height: 120px;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="{% url 'digimon-list-ui' %}">
+            Digipedia <span class="badge bg-primary ms-1">API Studio</span>
+        </a>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'digimon-list-ui' %}" class="btn btn-sm btn-outline-light">Tüm Liste</a>
+            <a href="{% url 'digimon-by-name-ui' %}" class="btn btn-sm btn-outline-light">İsme Göre</a>
+            <a href="{% url 'digimon-by-id-ui' %}" class="btn btn-sm btn-outline-light">ID'ye Göre</a>
+            <a href="{% url 'digimon-create' %}"
+               class="btn btn-sm {% if not is_update %}btn-success{% else %}btn-outline-success{% endif %}">
+                + Yeni Ekle
+            </a>
+        </div>
+    </div>
+</nav>
+
+<main class="container pb-5">
+    <div class="row g-4">
+        <!-- Sol / Ana Form Alanı -->
+        <div class="col-lg-8">
+            <div class="card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h1 class="h4 mb-1 fw-bold">
+                            {% if is_update %}
+                                Digimon Güncelle: <span class="text-primary">{{ instance.name }}</span>
+                                <span class="badge bg-warning-subtle text-warning-emphasis border ms-1">ID: {{ instance.id }}</span>
+                            {% else %}
+                                Yeni Digimon Kaydı
+                            {% endif %}
+                        </h1>
+                        <p class="text-muted small mb-0">
+                            {% if is_update %}
+                                Mevcut kaydı düzenleyip doğrudan güncelleyebilirsiniz.
+                            {% else %}
+                                Veriler doğrudan <code>DigimonSerializer</code> üzerinden doğrulanıp kaydedilir.
+                            {% endif %}
+                        </p>
+                    </div>
+                    <span class="badge bg-secondary-subtle text-dark border">1–4 Skill</span>
+                </div>
+
+                <div id="feedback"></div>
+
+                <form
+                        hx-post="{{ form_action }}"
+                        hx-target="#feedback"
+                        hx-swap="innerHTML"
+                        hx-encoding="multipart/form-data"
+                        hx-indicator="#submit-spinner"
+                >
+                    {% csrf_token %}
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Ad (name)</label>
+                            <input
+                                    type="text"
+                                    name="name"
+                                    value="{{ instance.name|default:'' }}"
+                                    class="form-control"
+                                    placeholder="MetalGarurumon"
+                                    required
+                            />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Attribute (attr)</label>
+                            <select name="attr" class="form-select">
+                                {% for val, label in attr_choices %}
+                                    <option value="{{ val }}" {% if instance.attr == val %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Element</label>
+                            <select name="element" class="form-select">
+                                {% for val, label in element_choices %}
+                                    <option value="{{ val }}" {% if instance.element == val %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Stage</label>
+                            <select name="stage" class="form-select">
+                                {% for val, label in stage_choices %}
+                                    <option value="{{ val }}" {% if instance.stage == val %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Rank</label>
+                            <select name="rank" class="form-select">
+                                {% for val, label in rank_choices %}
+                                    <option value="{{ val }}" {% if instance.rank == val %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Role</label>
+                            <select name="role" class="form-select">
+                                {% for val, label in role_choices %}
+                                    <option value="{{ val }}" {% if instance.role == val %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium d-block">Family (Çoklu Seçim)</label>
+                            <div class="border rounded-3 p-2 bg-white" style="max-height: 165px; overflow-y: auto;">
+                                {% for val, label in family_choices %}
+                                    <div class="form-check">
+                                        <input
+                                                class="form-check-input"
+                                                type="checkbox"
+                                                name="family"
+                                                value="{{ val }}"
+                                                id="family_{{ forloop.counter }}"
+                                                {% if val in selected_families %}checked{% endif %}
+                                        />
+                                        <label class="form-check-label small" for="family_{{ forloop.counter }}">
+                                            {{ label }}
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="form-text">Birden fazla family işaretleyebilirsiniz.</div>
+                        </div>
+
+                        <!-- Görsel Yükleme ve Preview -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Görsel (image)</label>
+                            <input
+                                    type="file"
+                                    name="image"
+                                    id="image-input"
+                                    class="form-control mb-2"
+                                    accept="image/*"
+                                    onchange="previewSelectedImage(this)"
+                            />
+
+                            <div
+                                    id="image-preview-wrapper"
+                                    class="image-preview-box {% if not instance.image %}d-none{% endif %}"
+                            >
+                                <div class="d-flex align-items-center gap-3">
+                                    <img
+                                            id="image-preview-tag"
+                                            src="{% if instance.image %}{{ instance.image.url }}{% endif %}"
+                                            alt="Digimon Önizleme"
+                                    />
+                                    <div class="small">
+                                        <div class="fw-semibold text-dark" id="image-preview-label">
+                                            {% if instance.image %}Kayıtlı Görsel{% else %}Seçilen Görsel{% endif %}
+                                        </div>
+                                        {% if instance.image %}
+                                            <div class="text-muted text-break" style="font-size: 0.75rem;">
+                                                {{ instance.image.name }}
+                                            </div>
+                                            <div class="form-check mt-1">
+                                                <input
+                                                        class="form-check-input"
+                                                        type="checkbox"
+                                                        name="clear_image"
+                                                        value="1"
+                                                        id="clear_image_cb"
+                                                />
+                                                <label class="form-check-label text-danger" for="clear_image_cb">
+                                                    Görseli kaldır
+                                                </label>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Prior Evolutions</label>
+                            <input
+                                    type="text"
+                                    name="prior_evolutions"
+                                    value="{{ prior_evolutions_str }}"
+                                    class="form-control"
+                                    placeholder="WereGarurumon"
+                            />
+                            <div class="form-text">Önceki evrimleri virgülle ayırın.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Next Evolutions</label>
+                            <input
+                                    type="text"
+                                    name="next_evolutions"
+                                    value="{{ next_evolutions_str }}"
+                                    class="form-control"
+                                    placeholder="Omegamon, ZeedGarurumon"
+                            />
+                            <div class="form-text">Sonraki evrimleri virgülle ayırın.</div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4"/>
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h2 class="h6 mb-0 fw-bold">Skills</h2>
+                            <small class="text-muted">En az 1, en fazla 4 skill ekleyebilirsiniz.</small>
+                        </div>
+                        <span id="skill-counter" class="badge bg-primary-subtle text-primary">
+                {% if existing_skills %}{{ existing_skills|length }}{% else %}1{% endif %} / 4
+              </span>
+                    </div>
+
+                    <div id="skills-container">
+                        {% if existing_skills %}
+                            {% for skill in existing_skills %}
+                                <div class="skill-card p-3 mb-2 skill-row">
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-4">
+                                            <label class="form-label small mb-1">Skill Adı</label>
+                                            <input
+                                                    type="text"
+                                                    name="skill_name"
+                                                    value="{{ skill.skill_name }}"
+                                                    class="form-control form-control-sm"
+                                                    required
+                                            />
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small mb-1">Skill Attr</label>
+                                            <select name="skill_attr" class="form-select form-select-sm">
+                                                {% for val, label in element_choices %}
+                                                    <option value="{{ val }}"
+                                                            {% if skill.skill_attr == val %}selected{% endif %}>
+                                                        {{ label }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small mb-1">Hasar</label>
+                                            <input
+                                                    type="number"
+                                                    name="skill_damage"
+                                                    value="{{ skill.skill_damage }}"
+                                                    class="form-control form-control-sm"
+                                                    min="0"
+                                                    required
+                                            />
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small mb-1">Efekt</label>
+                                            <input
+                                                    type="text"
+                                                    name="skill_effect"
+                                                    value="{{ skill.skill_effect }}"
+                                                    class="form-control form-control-sm"
+                                            />
+                                        </div>
+                                        <div class="col-md-1 d-grid">
+                                            <button
+                                                    type="button"
+                                                    class="btn btn-outline-danger btn-sm remove-skill-btn"
+                                                    onclick="removeSkillRow(this)"
+                                                    title="Satırı Sil"
+                                            >
+                                                &times;
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="skill-card p-3 mb-2 skill-row">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label small mb-1">Skill Adı</label>
+                                        <input
+                                                type="text"
+                                                name="skill_name"
+                                                class="form-control form-control-sm"
+                                                placeholder="Cocytus Breath"
+                                                required
+                                        />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small mb-1">Skill Attr</label>
+                                        <select name="skill_attr" class="form-select form-select-sm">
+                                            {% for val, label in element_choices %}
+                                                <option value="{{ val }}">{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label small mb-1">Hasar</label>
+                                        <input
+                                                type="number"
+                                                name="skill_damage"
+                                                class="form-control form-control-sm"
+                                                placeholder="14759"
+                                                min="0"
+                                                required
+                                        />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label small mb-1">Efekt</label>
+                                        <input
+                                                type="text"
+                                                name="skill_effect"
+                                                class="form-control form-control-sm"
+                                                placeholder="Freeze"
+                                        />
+                                    </div>
+                                    <div class="col-md-1 d-grid">
+                                        <button
+                                                type="button"
+                                                class="btn btn-outline-danger btn-sm remove-skill-btn"
+                                                onclick="removeSkillRow(this)"
+                                                title="Satırı Sil"
+                                        >
+                                            &times;
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <button
+                                type="button"
+                                id="add-skill-btn"
+                                class="btn btn-outline-primary"
+                                onclick="addSkillRow()"
+                        >
+                            + Skill Ekle
+                        </button>
+
+                        <button type="submit"
+                                class="btn {% if is_update %}btn-warning{% else %}btn-success{% endif %} px-4">
+                <span
+                        id="submit-spinner"
+                        class="spinner-border spinner-border-sm me-1 htmx-indicator"
+                        role="status"
+                ></span>
+                            {% if is_update %}Değişiklikleri Kaydet{% else %}API'ye Kaydet{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sağ Panel: Kayıtlı Digimonlar & Hızlı Düzenleme -->
+        <div class="col-lg-4">
+            <div class="card p-4">
+                <h2 class="h6 fw-bold mb-3">Son Eklenen Digimonlar</h2>
+                <div id="recent-digimons">
+                    {% include "digimon/partials/recent_list.html" %}
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    const MAX_SKILLS = 4;
+    const MIN_SKILLS = 1;
+
+    function addSkillRow() {
+        const container = document.getElementById("skills-container");
+        const rows = container.querySelectorAll(".skill-row");
+        if (rows.length >= MAX_SKILLS) return;
+
+        const clone = rows[0].cloneNode(true);
+        clone.querySelectorAll("input").forEach((input) => (input.value = ""));
+        container.appendChild(clone);
+        updateSkillUI();
+    }
+
+    function removeSkillRow(btn) {
+        const container = document.getElementById("skills-container");
+        const rows = container.querySelectorAll(".skill-row");
+        if (rows.length <= MIN_SKILLS) return;
+
+        btn.closest(".skill-row").remove();
+        updateSkillUI();
+    }
+
+    function updateSkillUI() {
+        const rows = document.querySelectorAll("#skills-container .skill-row");
+        const count = rows.length;
+        document.getElementById("add-skill-btn").disabled = count >= MAX_SKILLS;
+        document.getElementById("skill-counter").textContent = `${count} / ${MAX_SKILLS}`;
+
+        rows.forEach((row) => {
+            const removeBtn = row.querySelector(".remove-skill-btn");
+            if (removeBtn) removeBtn.disabled = count <= MIN_SKILLS;
+        });
+    }
+
+    function previewSelectedImage(input) {
+        const wrapper = document.getElementById("image-preview-wrapper");
+        const imgTag = document.getElementById("image-preview-tag");
+        const label = document.getElementById("image-preview-label");
+        const clearCb = document.getElementById("clear_image_cb");
+
+        if (input.files && input.files[0]) {
+            const objectUrl = URL.createObjectURL(input.files[0]);
+            imgTag.src = objectUrl;
+            label.textContent = "Yeni Seçilen Görsel (Önizleme)";
+            wrapper.classList.remove("d-none");
+            if (clearCb) clearCb.checked = false;
+        }
+    }
+
+    updateSkillUI();
+</script>
+</body>
+</html>

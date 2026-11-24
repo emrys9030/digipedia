@@ -1,0 +1,138 @@
+<!-- digimon/templates/digimon/partials/json_viewer.html -->
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+  <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3 px-4">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span id="json-status-badge" class="badge bg-success">200 OK</span>
+      <code id="json-endpoint-code" class="text-info small mb-0">{{ endpoint_url }}</code>
+    </div>
+    <button
+      type="button"
+      class="btn btn-sm btn-outline-light"
+      onclick="copyJsonOutput(this)"
+    >
+      JSON Kopyala
+    </button>
+  </div>
+  <div class="card-body p-0" style="background-color: #0b1120;">
+    <pre
+      id="json-code-block"
+      class="m-0 p-4 text-light small"
+      style="max-height: 540px; overflow: auto; line-height: 1.55; font-family: 'Fira Code', monospace;"
+    ><code>{{ json_output }}</code></pre>
+  </div>
+</div>
+
+<style>
+  .evo-json-link {
+    color: #38bdf8;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .evo-json-link:hover {
+    color: #7dd3fc;
+  }
+</style>
+
+<script>
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function renderClickableEvolutionUrls(rawText) {
+    // Her satırı ayırıp içinde "url": "http..." geçen satırları tıklanabilir linke çevirir
+    return rawText
+      .split("\n")
+      .map((line) => {
+        const match = line.match(/^(\s*"url"\s*:\s*")(https?:\/\/[^"]+)(",?)$/);
+        if (!match) {
+          return escapeHtml(line);
+        }
+        const prefix = escapeHtml(match[1]);
+        const url = match[2];
+        const suffix = escapeHtml(match[3]);
+        const safeUrlAttr = escapeHtml(url);
+        const safeUrlText = escapeHtml(url);
+        return `${prefix}<a href="${safeUrlAttr}" class="evo-json-link" data-evo-url="${safeUrlAttr}">${safeUrlText}</a>${suffix}`;
+      })
+      .join("\n");
+  }
+
+  function hydrateJsonViewer() {
+    const codeEl = document.querySelector("#json-code-block code");
+    if (!codeEl) return;
+    const rawText = codeEl.textContent || "";
+    codeEl.innerHTML = renderClickableEvolutionUrls(rawText);
+  }
+
+  async function loadDigimonFromUrl(url) {
+    const codeEl = document.querySelector("#json-code-block code");
+    const endpointEl = document.getElementById("json-endpoint-code");
+    const badgeEl = document.getElementById("json-status-badge");
+    if (!codeEl) return;
+
+    if (endpointEl) endpointEl.textContent = url;
+    if (badgeEl) {
+      badgeEl.className = "badge bg-warning text-dark";
+      badgeEl.textContent = "YÜKLENİYOR...";
+    }
+
+    try {
+      const resp = await fetch(url, { headers: { Accept: "application/json" } });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        if (badgeEl) {
+          badgeEl.className = "badge bg-danger";
+          badgeEl.textContent = `${resp.status} HATA`;
+        }
+        codeEl.textContent = JSON.stringify(data, null, 2);
+        return;
+      }
+
+      if (badgeEl) {
+        badgeEl.className = "badge bg-success";
+        badgeEl.textContent = "200 OK";
+      }
+      const formatted = JSON.stringify(data, null, 2);
+      codeEl.innerHTML = renderClickableEvolutionUrls(formatted);
+      document.getElementById("json-code-block")?.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      if (badgeEl) {
+        badgeEl.className = "badge bg-danger";
+        badgeEl.textContent = "AĞ HATASI";
+      }
+      codeEl.textContent = JSON.stringify({ detail: "İstek sırasında hata oluştu.", error: String(err) }, null, 2);
+    }
+  }
+
+  document.addEventListener("click", function (e) {
+    const link = e.target.closest("a.evo-json-link[data-evo-url]");
+    if (!link) return;
+    e.preventDefault();
+    const targetUrl = link.getAttribute("data-evo-url");
+    if (targetUrl) {
+      loadDigimonFromUrl(targetUrl);
+    }
+  });
+
+  function copyJsonOutput(btn) {
+    const codeText = document.getElementById("json-code-block")?.innerText;
+    if (!codeText) return;
+    navigator.clipboard.writeText(codeText).then(() => {
+      const original = btn.innerText;
+      btn.innerText = "Kopyalandı!";
+      btn.classList.replace("btn-outline-light", "btn-success");
+      setTimeout(() => {
+        btn.innerText = original;
+        btn.classList.replace("btn-success", "btn-outline-light");
+      }, 1500);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", hydrateJsonViewer);
+</script>

@@ -1,0 +1,27 @@
+# Python & Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Sanal ortam
+venv/
+.venv/
+env/
+
+# Medya ve static dosyalar (isteğe bağlı olarak özelleştirebilirsin)
+media/
+staticfiles/
+
+# Ortam değişkenleri & editör
+.env
+.env.*
+.vscode/
+.idea/
